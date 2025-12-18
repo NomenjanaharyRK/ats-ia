@@ -1,6 +1,7 @@
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 from sqlalchemy.sql import func
 from app.db.base import Base
+from sqlalchemy import ForeignKey
 
 class Offer(Base):
     __tablename__ = "offers"
@@ -10,6 +11,7 @@ class Offer(Base):
     description = Column(Text, nullable=False)
     status = Column(String(50), nullable=False, default="DRAFT")
     deleted = Column(Boolean, nullable=False, default=False)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

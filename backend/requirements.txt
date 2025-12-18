@@ -5,7 +5,8 @@ sqlalchemy
 psycopg2-binary
 alembic
 python-multipart
-passlib[bcrypt]
 python-jose[cryptography]
+pydantic[email]
+bcrypt
 celery
 redis
