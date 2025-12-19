@@ -2,6 +2,7 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
+from sqlalchemy.orm import relationship
 
 
 class Application(Base):
@@ -14,3 +15,9 @@ class Application(Base):
 
     offer = relationship("Offer", backref="applications")
     candidate = relationship("Candidate", backref="applications")
+    cv_text = relationship(
+        "CVText",
+        back_populates="application",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )

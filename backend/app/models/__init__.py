@@ -1,5 +1,6 @@
-from .offer import Offer  # noqa
-from .user import User  # noqa
-from .candidate import Candidate  # noqa
-from .application import Application  # noqa
-from .cv_file import CVFile  # noqa
+from app.models.user import User
+from app.models.offer import Offer
+from app.models.application import Application
+from app.models.candidate import Candidate
+from app.models.cv_file import CVFile
+from app.models.cv_text import CVText 
