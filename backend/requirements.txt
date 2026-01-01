@@ -11,3 +11,11 @@ bcrypt
 celery
 redis
 pdfminer.six
+
+python-docx
+pdf2image
+pytesseract
+Pillow
+scikit-learn
+opencv-python-headless==4.11.0.86
+numpy

@@ -143,12 +143,12 @@ def list_applications_for_offer(
         raise HTTPException(status_code=403, detail="Forbidden")
 
     # Charger les candidatures + candidat associé (joinedload pour éviter N+1)
-    apps = (
+    apps: list[Application] = (
         db.query(Application)
-        .options(joinedload(Application.candidate))
         .filter(Application.offer_id == offer_id)
-        .order_by(Application.id.desc())
+        .options(joinedload(Application.candidate))
         .all()
     )
+
 
     return apps

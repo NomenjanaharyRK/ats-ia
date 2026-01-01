@@ -50,7 +50,7 @@ const NewOfferPage: React.FC = () => {
       <main className="max-w-3xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700">
                   Titre
@@ -62,27 +62,6 @@ const NewOfferPage: React.FC = () => {
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700">
-                  Entreprise
-                </label>
-                <input
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700">
-                Lieu
-              </label>
-              <input
-                className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-              />
             </div>
 
             <div>
