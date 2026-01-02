@@ -7,8 +7,16 @@ from app.models.cv_text import CVText
 from app.services.cv_extraction import extract_cv_text, ExtractionError
 
 
-@shared_task(name="app.workers.tasks.process_cv_file")
-def process_cv_file(cv_file_id: int) -> None:
+@shared_task(name="app.workers.tasks.process_cv_file",
+    bind=True,
+    autoretry_for=(OSError, ConnectionError),
+    max_retries=3,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True
+)
+def process_cv_file(self, cv_file_id: int) -> None:
+:
     """
     Tâche Celery qui :
     - récupère un CVFile et son CVText associé,
@@ -23,6 +31,11 @@ def process_cv_file(cv_file_id: int) -> None:
         cv_file: CVFile | None = db.get(CVFile, cv_file_id)
         if not cv_file:
             print("### NO CV_FILE FOUND FOR ID", cv_file_id)
+            return
+
+                # Guard idempotence: skip si déjà traité ou en cours
+        if cv_file.status in (CVFileStatus.EXTRACTED.value, CVFileStatus.EXTRACTING.value):
+            print(f"### TASK ALREADY PROCESSED/PROCESSING (status={cv_file.status}), SKIPPING")
             return
 
         # 2. Marquer le fichier comme en cours d'extraction
