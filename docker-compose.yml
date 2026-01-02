@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: ats
       POSTGRES_USER: ats_user
-      POSTGRES_PASSWORD: ats_pass
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ats_pass}
     ports:
       - "5432:5432"
     volumes:
@@ -18,10 +18,12 @@ services:
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql+psycopg2://ats_user:ats_pass@db:5432/ats
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-      JWT_SECRET: change_me
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://ats_user:ats_pass@db:5432/ats}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
+      JWT_ACCESS_TOKEN_EXPIRE_SECONDS: ${JWT_ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
     ports:
       - "8000:8000"
     depends_on:
@@ -32,13 +34,13 @@ services:
 
   worker:
     build: ./backend
-    user: "1000:1000"
+    user: "${UID:-1000}:${GID:-1000}"
     command: celery -A app.workers.celery_app.celery_app worker -l info
     environment:
-      DATABASE_URL: postgresql+psycopg2://ats_user:ats_pass@db:5432/ats
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-      JWT_SECRET: change_me
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://ats_user:ats_pass@db:5432/ats}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
     depends_on:
       - db
       - redis
