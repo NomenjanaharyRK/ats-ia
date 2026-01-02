@@ -48,7 +48,7 @@ services:
   worker:
     build: ./backend
     user: "${UID:-1000}:${GID:-1000}"
-    command: celery -A app.workers.celery_app.celery_app worker -l info
+    command: celery -A app.workers.celery_app.celery_app worker -l info --max-tasks-per-child=1000
     env_file:
       - .env
     depends_on:
@@ -58,6 +58,17 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
+
+  flower:
+    build: ./backend
+    command: celery -A app.workers.celery_app.celery_app flower --port=5555
+    env_file:
+      - .env
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - worker
 
 volumes:
   db_data:
