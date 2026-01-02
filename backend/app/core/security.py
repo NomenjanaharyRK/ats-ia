@@ -1,49 +1,62 @@
-import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+from typing import Optional
 
-import bcrypt
 from jose import jwt
+from passlib.context import CryptContext
 
-ALGORITHM = "HS256"
-SECRET_KEY = os.getenv("JWT_SECRET", "change_me")
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+from app.core.config import settings
 
-
-def _normalize_password(password: str) -> bytes:
-    if password is None:
-        password = ""
-    # bcrypt limite à 72 bytes ⇒ tronquer
-    return password.encode("utf-8")[:72]
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def hash_password(password: str) -> str:
-    salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(_normalize_password(password), salt)
-    return hashed.decode("utf-8")
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
 
 
-def verify_password(password: str, hashed: str) -> bool:
-    try:
-        return bcrypt.checkpw(_normalize_password(password), hashed.encode("utf-8"))
-    except ValueError:
-        return False
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
 
 
-def create_token(subject: str, expires_delta: timedelta, token_type: str) -> str:
-    now = datetime.now(timezone.utc)
-    payload = {
-        "sub": subject,
-        "type": token_type,
-        "iat": int(now.timestamp()),
-        "exp": int((now + expires_delta).timestamp()),
-    }
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Create JWT access token with expiration."""
+    to_encode = data.copy()
+    
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(
+            minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+        )
+    
+    to_encode.update({"exp": expire, "type": "access"})
+    encoded_jwt = jwt.encode(
+        to_encode, 
+        settings.JWT_SECRET, 
+        algorithm=settings.JWT_ALGORITHM
+    )
+    return encoded_jwt
 
 
-def create_access_token(user_id: int) -> str:
-    return create_token(str(user_id), timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES), "access")
+def create_refresh_token(data: dict) -> str:
+    """Create JWT refresh token with longer expiration."""
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(
+        days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS
+    )
+    to_encode.update({"exp": expire, "type": "refresh"})
+    
+    encoded_jwt = jwt.encode(
+        to_encode,
+        settings.JWT_SECRET,
+        algorithm=settings.JWT_ALGORITHM
+    )
+    return encoded_jwt
 
 
-def create_refresh_token(user_id: int) -> str:
-    return create_token(str(user_id), timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS), "refresh")
+def decode_token(token: str) -> dict:
+    """Decode and validate JWT token."""
+    return jwt.decode(
+        token,
+        settings.JWT_SECRET,
+        algorithms=[settings.JWT_ALGORITHM]
+    )
