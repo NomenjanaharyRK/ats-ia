@@ -29,7 +29,6 @@ logger = structlog.get_logger(__name__)
     retry_jitter=True
 )
 def process_cv_file(self, cv_file_id: int) -> None:
-:
     """
     Tâche Celery qui :
     - récupère un CVFile et son CVText associé,
