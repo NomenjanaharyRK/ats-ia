@@ -145,6 +145,77 @@ def process_cv_file(self, cv_file_id: int) -> None:
         cv_text.quality_score = quality_score
         cv_text.error_message = None
 
+                # 7. Sprint 5: Parser et scorer le CV
+        try:
+            log.info("cv_parsing_started")
+            
+            # Initialiser le parser
+            parser = CVParser()
+            parsed_data = parser.parse(extracted_text)
+            
+            # Récupérer l'application et l'offre
+            application = db.get(Application, cv_file.application_id)
+            if not application:
+                log.warning("application_not_found_for_scoring")
+            else:
+                offer = db.get(Offer, application.offer_id)
+                if offer:
+                    # Préparer les données de l'offre pour le scoring
+                    offer_data = {
+                        "required_skills": offer.required_skills or [],
+                        "min_experience_years": offer.min_experience_years or 0,
+                        "required_education": offer.required_education or [],
+                        "required_languages": offer.required_languages or []
+                    }
+                    
+                    # Calculer le score
+                    scorer = CVScorer()
+                    scoring_result = scorer.calculate_score(parsed_data, offer_data)
+                    
+                    # Créer ou mettre à jour ParsedCV
+                    parsed_cv = db.query(ParsedCV).filter(
+                        ParsedCV.application_id == application.id
+                    ).one_or_none()
+                    
+                    if parsed_cv:
+                        # Mettre à jour
+                        for key, value in parsed_data.items():
+                            setattr(parsed_cv, key, value)
+                        for key, value in scoring_result.items():
+                            if key != 'scoring_details':
+                                setattr(parsed_cv, key, value)
+                        parsed_cv.scoring_details = scoring_result.get('scoring_details', {})
+                    else:
+                        # Créer nouveau
+                        parsed_cv = ParsedCV(
+                            application_id=application.id,
+                            **parsed_data,
+                            matching_score=scoring_result['matching_score'],
+                            skills_score=scoring_result['skills_score'],
+                            experience_score=scoring_result['experience_score'],
+                            education_score=scoring_result['education_score'],
+                            language_score=scoring_result['language_score'],
+                            scoring_details=scoring_result['scoring_details']
+                        )
+                        db.add(parsed_cv)
+                    
+                    log.info(
+                        "cv_parsed_and_scored",
+                        matching_score=scoring_result['matching_score'],
+                        skills_count=len(parsed_data.get('skills', []))
+                    )
+                else:
+                    log.warning("offer_not_found_for_scoring")
+        
+        except Exception as parse_error:
+            log.error(
+                "cv_parsing_error",
+                error=str(parse_error),
+                error_type=type(parse_error).__name__
+            )
+            # Ne pas bloquer le processus si le parsing échoue
+            # Le CV text est quand même extrait avec succès
+
         db.commit()
         log.info("process_cv_file_success")
         
