@@ -58,12 +58,10 @@ services:
     command: celery -A app.workers.celery_app.celery_app worker -l info --max-tasks-per-child=1000
     env_file:
       - .env
-    command: celery -A app.workers.celery_app.celery_app worker -l info
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://ats_user:ats_pass@db:5432/ats}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
-      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
+            JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
     depends_on:
       db:
         condition: service_healthy
