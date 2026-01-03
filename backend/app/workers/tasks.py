@@ -20,18 +20,6 @@ from app.services.cv_scorer import CVScorer
 logger = structlog.get_logger(__name__)
 
 
-@shared_task(
-    bind=True,
-    name="app.workers.tasks.process_cv_file",
-    autoretry_for=(OSError, SQLAlchemyError),
-    retry_backoff=True,
-    retry_backoff_max=600,  # 10 minutes max
-    retry_jitter=True,
-    max_retries=3,
-    acks_late=True,  # Only ack after success
-    reject_on_worker_lost=True,
-)
-def process_cv_file(self, cv_file_id: int) -> None:
 @shared_task(name="app.workers.tasks.process_cv_file",
     bind=True,
     autoretry_for=(OSError, ConnectionError),
