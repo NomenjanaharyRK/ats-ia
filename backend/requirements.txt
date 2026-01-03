@@ -27,3 +27,9 @@ python-json-logger
 
 # Celery monitoring
 flower
+
+# Sprint 5: IA Scoring & Matching
+spacy==3.7.2
+https://github.com/explosion/spacy-models/releases/download/fr_core_news_md-3.7.0/fr_core_news_md-3.7.0-py3-none-any.whl
+python-Levenshtein==0.25.0
+fuzzywuzzy==0.18.0
