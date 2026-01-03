@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, sprint* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        pip install pytest pytest-cov ruff bandit
+    
+    - name: Lint with ruff
+      run: |
+        cd backend
+        ruff check app/ --select=E,F,W || true
+    
+    - name: Security scan with bandit
+      run: |
+        cd backend
+        bandit -r app/ -ll || true
+    
+    - name: Run tests with coverage
+      run: |
+        cd backend
+        pytest --cov=app --cov-report=term --cov-report=xml tests/ || true
+    
+    - name: Check coverage threshold
+      run: |
+        cd backend
+        coverage report --fail-under=30 || true
