@@ -23,7 +23,6 @@ from app.models.user import UserRole, User
 from app.services.storage import save_cv_file_to_disk
 from app.workers.tasks import process_cv_file
 
-
 router = APIRouter(prefix="/offers", tags=["applications"])
 
 
@@ -55,10 +54,11 @@ def create_application_with_cv(
     8. Déclenchement de la tâche Celery process_cv_file.
     """
 
-    # 1) Vérifier que l’offre existe et appartient bien au user (sauf admin)
+    # 1) Vérifier que l'offre existe et appartient bien au user (sauf admin)
     offer = db.get(Offer, offer_id)
     if not offer or offer.deleted:
         raise HTTPException(status_code=404, detail="Offer not found")
+
     if current_user.role != UserRole.ADMIN and offer.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
@@ -95,7 +95,6 @@ def create_application_with_cv(
 
     # 6) Sauvegarder le fichier sur disque et créer CVFile
     storage_path, size_bytes, sha256 = save_cv_file_to_disk(file)
-
     cv_file = CVFile(
         application_id=application.id,
         storage_path=storage_path,
@@ -124,31 +123,43 @@ def create_application_with_cv(
 
 @router.get(
     "/{offer_id}/applications",
-    response_model=List[ApplicationRead],
+    response_model=dict,
 )
 def list_applications_for_offer(
     offer_id: int,
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.ADMIN, UserRole.RECRUITER)),
 ):
     """
     Liste toutes les candidatures d'une offre donnée, pour l'owner ou un admin.
+    Avec pagination pour améliorer les performances.
     """
-
     # Vérifier offre + droits
     offer = db.get(Offer, offer_id)
     if not offer or offer.deleted:
         raise HTTPException(status_code=404, detail="Offer not found")
+
     if current_user.role != UserRole.ADMIN and offer.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    # Charger les candidatures + candidat associé (joinedload pour éviter N+1)
-    apps: list[Application] = (
+    # Count total
+    total = db.query(Application).filter(Application.offer_id == offer_id).count()
+
+    # Query avec pagination
+    apps = (
         db.query(Application)
         .filter(Application.offer_id == offer_id)
         .options(joinedload(Application.candidate))
+        .offset(skip)
+        .limit(limit)
         .all()
     )
 
-
-    return apps
+    return {
+        "items": apps,
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    }
