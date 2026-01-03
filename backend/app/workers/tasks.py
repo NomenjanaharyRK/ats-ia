@@ -1,12 +1,32 @@
+"""Celery tasks with idempotence, retries, and structured logging."""
+import logging
+import structlog
 from celery import shared_task
+from celery.exceptions import MaxRetriesExceededError
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.session import SessionLocal
 from app.models.cv_file import CVFile, CVFileStatus
 from app.models.cv_text import CVText
 from app.services.cv_extraction import extract_cv_text, ExtractionError
 
+# Configure structured logging
+logger = structlog.get_logger(__name__)
 
+
+@shared_task(
+    bind=True,
+    name="app.workers.tasks.process_cv_file",
+    autoretry_for=(OSError, SQLAlchemyError),
+    retry_backoff=True,
+    retry_backoff_max=600,  # 10 minutes max
+    retry_jitter=True,
+    max_retries=3,
+    acks_late=True,  # Only ack after success
+    reject_on_worker_lost=True,
+)
+def process_cv_file(self, cv_file_id: int) -> None:
 @shared_task(name="app.workers.tasks.process_cv_file",
     bind=True,
     autoretry_for=(OSError, ConnectionError),
@@ -22,40 +42,60 @@ def process_cv_file(self, cv_file_id: int) -> None:
     - récupère un CVFile et son CVText associé,
     - lance l'extraction de texte,
     - met à jour les statuts et stocke le texte + quality_score.
+    
+    Idempotent: safe to retry without side effects.
     """
-    print("### PROCESS_CV_FILE START, ID =", cv_file_id)
+    task_id = self.request.id
+    log = logger.bind(task_id=task_id, cv_file_id=cv_file_id)
+    
+    log.info("process_cv_file_start")
 
     db: Session = SessionLocal()
     try:
         # 1. Charger le fichier CV
         cv_file: CVFile | None = db.get(CVFile, cv_file_id)
         if not cv_file:
-            print("### NO CV_FILE FOUND FOR ID", cv_file_id)
+            log.error("cv_file_not_found")
             return
+        
+        log = log.bind(
+            application_id=cv_file.application_id,
+            original_filename=cv_file.original_filename,
+            current_status=cv_file.status
+        )
 
-                # Guard idempotence: skip si déjà traité ou en cours
-        if cv_file.status in (CVFileStatus.EXTRACTED.value, CVFileStatus.EXTRACTING.value):
-            print(f"### TASK ALREADY PROCESSED/PROCESSING (status={cv_file.status}), SKIPPING")
+        # 2. IDEMPOTENCE CHECK: Don't reprocess if already done or in progress
+        if cv_file.status in [CVFileStatus.EXTRACTED.value, CVFileStatus.EXTRACTING.value]:
+            log.info(
+                "task_already_processed_or_in_progress",
+                status=cv_file.status
+            )
             return
-
-        # 2. Marquer le fichier comme en cours d'extraction
+        
+        # If status is FAILED, we allow retry (manual or automatic)
+        
+        # 3. Marquer le fichier comme en cours d'extraction (atomic state transition)
         cv_file.status = CVFileStatus.EXTRACTING.value
         db.flush()
+        db.commit()  # Commit state change immediately
+        
+        log.info("extraction_started")
 
-        # 3. Récupérer la ligne CVText associée à la candidature
+        # 4. Récupérer la ligne CVText associée à la candidature
         cv_text: CVText | None = (
             db.query(CVText)
             .filter(CVText.application_id == cv_file.application_id)
             .one_or_none()
         )
         if not cv_text:
+            error_msg = "No CVText row for this application"
+            log.error("cv_text_not_found")
             cv_file.status = CVFileStatus.FAILED.value
-            cv_file.error_message = "No CVText row for this application"
+            cv_file.error_message = error_msg
             db.commit()
-            print("### NO CV_TEXT FOR APPLICATION", cv_file.application_id)
             return
 
-        # 4. Extraction de texte + debug OCR
+        # 5. Extraction de texte + debug OCR
         try:
             # Appel OCR / extraction
             result = extract_cv_text(cv_file.storage_path, cv_file.mime_type)
@@ -70,36 +110,71 @@ def process_cv_file(self, cv_file_id: int) -> None:
                 quality_score = None
                 meta = {}
 
-            # LOGS DEBUG OCR (affichés dans les logs du worker)
-            print("DEBUG OCR")
-            print("FILE:", cv_file.storage_path, "MIME:", cv_file.mime_type)
-            print("LEN TEXT:", len(extracted_text))
-            print("QUALITY:", quality_score)
-            print("SAMPLE:", extracted_text[:500])
+            log.info(
+                "extraction_successful",
+                text_length=len(extracted_text),
+                quality_score=quality_score,
+                meta=meta
+            )
 
         except ExtractionError as e:
             msg = str(e)
-            print("### EXTRACTION ERROR:", msg)
+            log.error("extraction_error", error=msg, error_type="ExtractionError")
+            
             cv_file.status = CVFileStatus.FAILED.value
             cv_file.error_message = msg
             cv_text.status = "FAILED"
             cv_text.error_message = msg
+            db.commit()
+            
+            # Don't retry ExtractionError (permanent failure)
+            return
+            
         except Exception as e:
-            # Si quelque chose casse dans l'OCR, on veut le voir clairement
-            print("### EXTRACTION CRASH:", repr(e))
-            msg = f"Unexpected error: {e}"
-            cv_file.status = CVFileStatus.FAILED.value
-            cv_file.error_message = msg
-            cv_text.status = "FAILED"
-            cv_text.error_message = msg
-        else:
-            # 5. Mise à jour en cas de succès
-            cv_file.status = CVFileStatus.EXTRACTED.value
-            cv_text.status = "SUCCESS"
-            cv_text.extracted_text = extracted_text  # texte brut
-            cv_text.quality_score = quality_score    # score qualité 0..1
-            cv_text.error_message = None
+            # Unexpected error - will be retried if transient
+            log.error(
+                "extraction_unexpected_error",
+                error=repr(e),
+                error_type=type(e).__name__
+            )
+            
+            # Mark as extracting (not failed) to allow retry
+            cv_file.error_message = f"Retry {self.request.retries + 1}/{self.max_retries}: {e}"
+            db.commit()
+            
+            # Raise to trigger retry
+            raise
+        
+        # 6. Mise à jour en cas de succès
+        cv_file.status = CVFileStatus.EXTRACTED.value
+        cv_file.error_message = None
+        cv_text.status = "SUCCESS"
+        cv_text.extracted_text = extracted_text
+        cv_text.quality_score = quality_score
+        cv_text.error_message = None
 
         db.commit()
+        log.info("process_cv_file_success")
+        
+    except MaxRetriesExceededError:
+        log.error("max_retries_exceeded")
+        # Move to DLQ-like state
+        try:
+            cv_file.status = CVFileStatus.FAILED.value
+            cv_file.error_message = "Max retries exceeded"
+            if cv_text:
+                cv_text.status = "FAILED"
+                cv_text.error_message = "Max retries exceeded"
+            db.commit()
+        except Exception as commit_error:
+            log.error("failed_to_update_status_after_max_retries", error=repr(commit_error))
+        raise
+        
+    except Exception as e:
+        log.error("process_cv_file_error", error=repr(e), error_type=type(e).__name__)
+        db.rollback()
+        raise
+        
     finally:
         db.close()
+        log.info("process_cv_file_end")

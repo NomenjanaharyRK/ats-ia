@@ -9,14 +9,26 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ats_user -d ats"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   backend:
     build: ./backend
+    env_file:
+      - .env
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://ats_user:ats_pass@db:5432/ats}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
@@ -27,14 +39,25 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - ./backend:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   worker:
     build: ./backend
     user: "${UID:-1000}:${GID:-1000}"
+    command: celery -A app.workers.celery_app.celery_app worker -l info --max-tasks-per-child=1000
+    env_file:
+      - .env
     command: celery -A app.workers.celery_app.celery_app worker -l info
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://ats_user:ats_pass@db:5432/ats}
@@ -42,10 +65,23 @@ services:
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env file}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - ./backend:/app
+
+  flower:
+    build: ./backend
+    command: celery -A app.workers.celery_app.celery_app flower --port=5555
+    env_file:
+      - .env
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - worker
 
 volumes:
   db_data:
