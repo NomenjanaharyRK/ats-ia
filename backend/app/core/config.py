@@ -55,5 +55,5 @@ settings = Settings()
 # Validate on import (fails fast in development)
 if settings.ENVIRONMENT == "production":
     settings.validate_jwt_secret()
-"""
+
 59
