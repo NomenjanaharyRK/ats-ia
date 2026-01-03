@@ -21,3 +21,10 @@ class Application(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+
+    parsed_cv = relationship(
+        "ParsedCV",
+        back_populates="application",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
