@@ -8,6 +8,7 @@ python-multipart
 python-jose[cryptography]
 pydantic[email]
 bcrypt
+passlib
 celery
 redis
 pdfminer.six
