@@ -10,6 +10,11 @@ from app.db.session import SessionLocal
 from app.models.cv_file import CVFile, CVFileStatus
 from app.models.cv_text import CVText
 from app.services.cv_extraction import extract_cv_text, ExtractionError
+from app.models.parsed_cv import ParsedCV
+from app.models.offer import Offer
+from app.models.application import Application
+from app.services.cv_parser import CVParser
+from app.services.cv_scorer import CVScorer
 
 # Configure structured logging
 logger = structlog.get_logger(__name__)
