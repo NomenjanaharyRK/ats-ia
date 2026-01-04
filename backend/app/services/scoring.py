@@ -16,7 +16,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # SBERT : on garde l'import, mais la fonction elle-même doit être "safe"
-from app.services.embeddings import sbert_similarity
+
 
 
 WORD_RE = re.compile(r"\w+", re.UNICODE)
@@ -96,18 +96,18 @@ def combined_score(
     overlap = overlap_raw / 100.0
 
     # 3) SBERT (0..1) - IMPORTANT: sbert_similarity doit renvoyer 0.0 si erreur
-    sbert = sbert_similarity(job_text, cv_text)
+    semantic_sim = sbert_similarity(job_text, cv_text)
 
     # Logs
     print("DEBUG SCORING")
     print("TFIDF:", tfidf)
     print("OVERLAP_RAW:", overlap_raw)
-    print("SBERT:", sbert)
+    print("SBERT:", semantic_sim)
     print("QUALITY:", quality_score)
 
     # 4) Combinaison
     base_no_sbert = alpha * tfidf + (1.0 - alpha) * overlap
-    base = sbert_weight * sbert + (1.0 - sbert_weight) * base_no_sbert
+    base = sbert_weight * semantic_sim + (1.0 - sbert_weight) * base_no_sbert
 
     # 5) Pondération qualité
     if quality_score is not None:
