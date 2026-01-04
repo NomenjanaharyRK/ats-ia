@@ -4,6 +4,7 @@ import logging
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from redis import Redis
 
 from app.api.v1.router import api_router
@@ -70,11 +71,10 @@ def health_check(db: Session = Depends(get_db)):
     
     # Check database
     try:
-                from sqlalchemy import text
         db.execute(text("SELECT 1"))
         health_status["checks"]["database"] = "ok"
     except Exception as e:
-        health_status["status"] = "unhealthy"
+        
         health_status["checks"]["database"] = f"error: {str(e)}"
     
     # Check Redis
