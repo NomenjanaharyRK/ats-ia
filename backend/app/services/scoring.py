@@ -21,6 +21,61 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 WORD_RE = re.compile(r"\w+", re.UNICODE)
 
+# Sprint 5: SBERT Similarity Function
+from sentence_transformers import SentenceTransformer, util
+import logging
+
+# Charger le modèle SBERT une seule fois au démarrage du module
+try:
+    _sbert_model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
+    _model_loaded = True
+    logging.info("SBERT model loaded successfully")
+except Exception as e:
+    logging.error(f"Failed to load SBERT model: {e}")
+    _sbert_model = None
+    _model_loaded = False
+
+
+def sbert_similarity(text1: str, text2: str) -> float:
+    """
+    Calcule la similarité sémantique entre deux textes en utilisant SBERT.
+    
+    Args:
+        text1: Premier texte (description de poste)
+        text2: Deuxième texte (texte du CV)
+    
+    Returns:
+        float: Score de similarité entre 0.0 et 1.0
+               Retourne 0.0 en cas d'erreur ou si le modèle n'est pas chargé
+    """
+    if not _model_loaded or not _sbert_model:
+        logging.warning("SBERT model not loaded, returning 0.0")
+        return 0.0
+    
+    if not text1 or not text2:
+        logging.warning("Empty text provided to sbert_similarity")
+        return 0.0
+    
+    try:
+        # Encoder les deux textes en embeddings
+        embedding1 = _sbert_model.encode(text1, convert_to_tensor=True)
+        embedding2 = _sbert_model.encode(text2, convert_to_tensor=True)
+        
+        # Calculer la similarité cosinus entre les embeddings
+        similarity = util.cos_sim(embedding1, embedding2)
+        
+        # Convertir en float et s'assurer que le score est entre 0 et 1
+        score = float(similarity[0][0])
+        score = max(0.0, min(score, 1.0))
+        
+        logging.debug(f"SBERT similarity calculated: {score:.4f}")
+        return score
+        
+    except Exception as e:
+        logging.error(f"Error in sbert_similarity: {e}")
+        return 0.0
+
+
 
 def _normalize(text: str) -> list[str]:
     text = text.lower()
