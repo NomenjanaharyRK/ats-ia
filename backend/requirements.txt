@@ -7,7 +7,7 @@ alembic
 python-multipart
 python-jose[cryptography]
 pydantic[email]
-bcrypt
+bcrypt==3.2.2
 passlib
 celery
 redis
@@ -21,14 +21,11 @@ opencv-python-headless==4.11.0.86
 numpy
 sentence-transformers
 spacy
-
 # Structured logging
 structlog
 python-json-logger
-
 # Celery monitoring
 flower
-
 # Sprint 5: IA Scoring & Matching
 spacy==3.7.2
 https://github.com/explosion/spacy-models/releases/download/fr_core_news_md-3.7.0/fr_core_news_md-3.7.0-py3-none-any.whl
