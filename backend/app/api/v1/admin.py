@@ -8,9 +8,8 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.core.security import get_current_user
-from app.core.permissions import (
+from app.db.deps import get_db
+from app.api.v1.auth import get_current_user
     Permission, Role, require_permission, has_permission
 )
 from app.models.user import User
