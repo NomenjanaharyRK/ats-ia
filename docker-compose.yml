@@ -61,7 +61,8 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://ats_user:ats_pass@db:5432/ats}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
-            JWT_SECRET: "${JWT_SECRET:?JWT_SECRET must be set in .env file}"
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET must be set in .env file}"
     depends_on:
       db:
         condition: service_healthy

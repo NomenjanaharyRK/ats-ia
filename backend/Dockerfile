@@ -25,8 +25,9 @@ RUN pip install --default-timeout=120 --no-cache-dir \
 COPY requirements.txt /app/requirements.txt
 RUN pip install --default-timeout=120 --no-cache-dir -r requirements.txt
 
-# 3) Modèle spaCy FR
-RUN python -m spacy download fr_core_news_md
+# 3) Modèle spaCy FR - Installation via pip (déjà dans requirements.txt)
+# Le modèle est installé automatiquement via requirements.txt, pas besoin de cette ligne
+# Si requirements.txt contient le modèle, cette étape est redondante et peut causer des erreurs
 
 # Code de l'application
 COPY . /app
