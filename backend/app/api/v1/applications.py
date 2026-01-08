@@ -123,7 +123,7 @@ def create_application_with_cv(
 
 @router.get(
     "/{offer_id}/applications",
-    response_model=dict,
+    response_model=List[ApplicationRead],  # ✅ CHANGE: List[ApplicationRead] au lieu de dict
 )
 def list_applications_for_offer(
     offer_id: int,
@@ -132,11 +132,7 @@ def list_applications_for_offer(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.ADMIN, UserRole.RECRUITER)),
 ):
-    """
-    Liste toutes les candidatures d'une offre donnée, pour l'owner ou un admin.
-    Avec pagination pour améliorer les performances.
-    """
-    # Vérifier offre + droits
+    """..."""
     offer = db.get(Offer, offer_id)
     if not offer or offer.deleted:
         raise HTTPException(status_code=404, detail="Offer not found")
@@ -144,10 +140,6 @@ def list_applications_for_offer(
     if current_user.role != UserRole.ADMIN and offer.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    # Count total
-    total = db.query(Application).filter(Application.offer_id == offer_id).count()
-
-    # Query avec pagination
     apps = (
         db.query(Application)
         .filter(Application.offer_id == offer_id)
@@ -157,9 +149,5 @@ def list_applications_for_offer(
         .all()
     )
 
-    return {
-        "items": apps,
-        "total": total,
-        "skip": skip,
-        "limit": limit
-    }
+    return apps  # ✅ CHANGE: return apps au lieu du dict
+

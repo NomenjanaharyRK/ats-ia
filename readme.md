@@ -80,5 +80,7 @@ docker compose restart worker
 
 # Arrêter tout
 docker compose down
-```
 
+#Seed database
+docker exec -it ats-ia-backend-1 python seed_database.py
+```
