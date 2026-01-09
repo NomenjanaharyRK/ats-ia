@@ -3,7 +3,6 @@ from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, JSON, F
 from sqlalchemy.sql import func
 from app.db.base import Base
 
-
 class Offer(Base):
     __tablename__ = "offers"
 
@@ -13,13 +12,13 @@ class Offer(Base):
     status = Column(String(50), nullable=False, default="DRAFT")
     deleted = Column(Boolean, nullable=False, default=False)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    
-    # ✅ NOUVEAUX CHAMPS pour le scoring
-    required_skills = Column(JSON, nullable=True, default=list)
-    nice_to_have_skills = Column(JSON, nullable=True, default=list)
+
+    # ✅ NOUVEAUX CHAMPS pour le scoring - FIXED JSON columns
+    required_skills = Column(JSON, nullable=True)
+    nice_to_have_skills = Column(JSON, nullable=True)
     min_experience_years = Column(Integer, nullable=True, default=0)
-    required_education = Column(JSON, nullable=True, default=list)
-    required_languages = Column(JSON, nullable=True, default=list)
+    required_education = Column(JSON, nullable=True)
+    required_languages = Column(JSON, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
