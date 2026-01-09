@@ -9,8 +9,10 @@ import { OffersPage } from '@/pages/Offers';
 import { CreateOfferPage } from '@/pages/CreateOffer';
 import { OfferDetail } from '@/pages/OfferDetail';
 import { ApplicationsPage } from '@/pages/ApplicationsPage';
-import { useAuthStore } from '@/lib/auth';
+import { useAuthStore } from '@/libs/auth';
+import { startTokenRefreshTimer } from '@/libs/tokenRefresh'; // ✅ NOUVEAU
 import './index.css';
+import { useEffect } from 'react';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -114,6 +116,17 @@ function AppContent() {
 }
 
 function App() {
+  useEffect(() => {
+    // ✅ Démarrer le timer de refresh proactif
+    // Rafraîchit le token 5 minutes avant expiration
+    const cleanup = startTokenRefreshTimer();
+    
+    return () => {
+      // ✅ Cleanup au démontage du composant
+      cleanup();
+    };
+  }, []);
+
   return <AppContent />;
 }
 

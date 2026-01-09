@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuthStore } from '@/lib/auth';
+import { useAuthStore } from '@/libs/auth';
 import { Button } from '@/components/ui/button';
 
 export function Shell({ children }: { children: React.ReactNode }) {

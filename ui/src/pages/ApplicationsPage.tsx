@@ -1,10 +1,11 @@
+// src/pages/ApplicationsPage.tsx
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScoringModal } from '@/components/ScoringModal';
-import { applicationsApi, Application } from '@/lib/api';
+import { applicationsApi, Application } from '@/libs/api';
 
 export function ApplicationsPage() {
   const [search, setSearch] = useState('');
@@ -12,20 +13,28 @@ export function ApplicationsPage() {
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [sortBy, setSortBy] = useState<'date' | 'score'>('date');
 
-// Fetch all applications
-const { data: applications = [], isLoading } = useQuery({
-  queryKey: ['all-applications'],
-  queryFn: async () => {
-    try {
-      const result = await applicationsApi.getAllApplications();
-      return Array.isArray(result) ? result : [];
-    } catch (error) {
-      console.error('Erreur getAllApplications:', error);
-      return [];
-    }
-  },
-  refetchInterval: 5000,
-});
+  // ✅ CORRECTION: Fetch avec relations incluses
+  const { data: applications = [], isLoading, error } = useQuery({
+    queryKey: ['all-applications'],
+    queryFn: async () => {
+      try {
+        // Récupère toutes les candidatures avec job_offer, cv_file, et scoring
+        const result = await applicationsApi.getAllApplications(true);
+        console.log('✅ Applications récupérées:', result);
+        return Array.isArray(result) ? result : [];
+      } catch (error) {
+        console.error('❌ Erreur getAllApplications:', error);
+        throw error; // Relancer l'erreur pour React Query
+      }
+    },
+    refetchInterval: 5000, // Rafraîchir toutes les 5s
+    retry: 3, // Réessayer 3 fois en cas d'erreur
+  });
+
+  // Afficher erreur si nécessaire
+  if (error) {
+    console.error('Erreur de chargement:', error);
+  }
 
   // Filter et sort
   const filteredApplications = applications
@@ -38,27 +47,32 @@ const { data: applications = [], isLoading } = useQuery({
     })
     .sort((a, b) => {
       if (sortBy === 'score') {
-        // Mock score pour démo (en vrai viendrait de DB)
-        return 0;
+        // ✅ CORRECTION: Tri par score réel
+        const scoreA = a.scoring?.overall_score ?? -1;
+        const scoreB = b.scoring?.overall_score ?? -1;
+        return scoreB - scoreA; // Décroissant (score le plus élevé d'abord)
       }
+      // Tri par date
       return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
     });
+
+  // ... (reste du code statusColor et statusLabel identique)
 
   const statusColor = (status: string) => {
     switch (status) {
       case 'SCORED':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 border-green-300';
       case 'SCORING':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'EXTRACTING':
       case 'EXTRACTED':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       case 'ERROR':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 border-red-300';
       case 'UPLOADING':
-        return 'bg-purple-100 text-purple-800';
+        return 'bg-purple-100 text-purple-800 border-purple-300';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
@@ -68,13 +82,13 @@ const { data: applications = [], isLoading } = useQuery({
       EXTRACTING: '🔄 Extraction',
       EXTRACTED: '✓ Extrait',
       SCORING: '⚙️ Scoring',
-      SCORED: '✅ Scoring terminé',
+      SCORED: '✅ Terminé',
       ERROR: '❌ Erreur',
     };
     return labels[status] || status;
   };
 
-  // Stats
+  // ✅ CORRECTION: Stats avec vraies données
   const stats = {
     total: applications.length,
     scored: applications.filter((a) => a.status === 'SCORED').length,
@@ -82,6 +96,19 @@ const { data: applications = [], isLoading } = useQuery({
       ['UPLOADING', 'EXTRACTING', 'SCORING'].includes(a.status)
     ).length,
     errors: applications.filter((a) => a.status === 'ERROR').length,
+  };
+
+  // ✅ AJOUT: Fonction pour obtenir le badge de score avec couleur
+  const getScoreBadge = (score: number) => {
+    if (score >= 80) {
+      return 'bg-green-600 text-white';
+    } else if (score >= 60) {
+      return 'bg-blue-600 text-white';
+    } else if (score >= 40) {
+      return 'bg-yellow-600 text-white';
+    } else {
+      return 'bg-red-600 text-white';
+    }
   };
 
   return (
@@ -94,7 +121,7 @@ const { data: applications = [], isLoading } = useQuery({
         </p>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - identique */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-card border rounded-2xl p-6">
           <p className="text-sm text-muted-foreground mb-2">Total</p>
@@ -114,10 +141,9 @@ const { data: applications = [], isLoading } = useQuery({
         </div>
       </div>
 
-      {/* Filters & Search */}
+      {/* Filters - identique */}
       <div className="mb-8 space-y-4 bg-card border rounded-2xl p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Search */}
           <div>
             <label className="text-sm font-semibold mb-2 block">Rechercher</label>
             <Input
@@ -128,7 +154,6 @@ const { data: applications = [], isLoading } = useQuery({
             />
           </div>
 
-          {/* Status Filter */}
           <div>
             <label className="text-sm font-semibold mb-2 block">Statut</label>
             <select
@@ -145,7 +170,6 @@ const { data: applications = [], isLoading } = useQuery({
             </select>
           </div>
 
-          {/* Sort */}
           <div>
             <label className="text-sm font-semibold mb-2 block">Trier par</label>
             <select
@@ -171,7 +195,16 @@ const { data: applications = [], isLoading } = useQuery({
         {isLoading ? (
           <div className="p-16 text-center animate-pulse">
             <div className="inline-block w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-            <p className="mt-4 text-muted-foreground">Chargement...</p>
+            <p className="mt-4 text-muted-foreground">Chargement des candidatures...</p>
+          </div>
+        ) : error ? (
+          <div className="p-16 text-center">
+            <div className="text-red-500 text-4xl mb-4">⚠️</div>
+            <p className="text-red-600 font-semibold mb-2">Erreur de chargement</p>
+            <p className="text-sm text-muted-foreground">
+              Vérifiez que le backend est bien démarré sur{' '}
+              <code className="bg-muted px-2 py-1 rounded">http://localhost:8000</code>
+            </p>
           </div>
         ) : filteredApplications.length === 0 ? (
           <div className="p-16 text-center">
@@ -188,7 +221,12 @@ const { data: applications = [], isLoading } = useQuery({
                 d="M20 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"
               />
             </svg>
-            <p className="text-muted-foreground">Aucune candidature trouvée</p>
+            <p className="text-muted-foreground text-lg mb-2">Aucune candidature trouvée</p>
+            <p className="text-sm text-muted-foreground">
+              {applications.length === 0
+                ? 'Aucune candidature en base de données'
+                : 'Essayez de modifier vos filtres'}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -198,6 +236,7 @@ const { data: applications = [], isLoading } = useQuery({
                   <th className="px-8 py-4 text-left text-sm font-semibold">Candidat</th>
                   <th className="px-8 py-4 text-left text-sm font-semibold">Email</th>
                   <th className="px-8 py-4 text-left text-sm font-semibold">Téléphone</th>
+                  <th className="px-8 py-4 text-left text-sm font-semibold">Poste</th>
                   <th className="px-8 py-4 text-left text-sm font-semibold">Statut</th>
                   <th className="px-8 py-4 text-center text-sm font-semibold">Score</th>
                   <th className="px-8 py-4 text-left text-sm font-semibold">Date</th>
@@ -209,24 +248,52 @@ const { data: applications = [], isLoading } = useQuery({
                   <tr key={app.id} className="border-t hover:bg-muted/50 transition-colors">
                     <td className="px-8 py-6 font-medium">{app.fullname}</td>
                     <td className="px-8 py-6 text-sm text-muted-foreground">{app.email}</td>
-                    <td className="px-8 py-6 text-sm text-muted-foreground">{app.phone}</td>
+                    <td className="px-8 py-6 text-sm text-muted-foreground">
+                      {app.phone || '--'}
+                    </td>
+                    <td className="px-8 py-6 text-sm">
+                      {app.job_offer ? (
+                        <span className="text-primary font-medium">
+                          {app.job_offer.title}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">--</span>
+                      )}
+                    </td>
                     <td className="px-8 py-6">
                       <Badge className={statusColor(app.status)}>
                         {statusLabel(app.status)}
                       </Badge>
                     </td>
                     <td className="px-8 py-6 text-center">
-                      {app.status === 'SCORED' ? (
-                        <span className="font-bold text-lg">--</span>
+                      {/* ✅ CORRECTION: Affichage du score réel */}
+                      {app.status === 'SCORED' && app.scoring ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <Badge className={`${getScoreBadge(app.scoring.overall_score)} font-bold text-lg px-3 py-1`}>
+                            {app.scoring.overall_score}/100
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {app.scoring.overall_score >= 80 ? '🌟 Excellent' :
+                             app.scoring.overall_score >= 60 ? '✅ Bon' :
+                             app.scoring.overall_score >= 40 ? '⚠️ Moyen' : '❌ Faible'}
+                          </span>
+                        </div>
                       ) : ['UPLOADING', 'EXTRACTING', 'SCORING'].includes(app.status) ? (
-                        <span className="text-sm text-yellow-600 animate-pulse">⏳</span>
+                        <div className="flex flex-col items-center">
+                          <div className="w-5 h-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mb-1"></div>
+                          <span className="text-xs text-yellow-600">Calcul...</span>
+                        </div>
                       ) : (
                         <span className="text-muted-foreground">--</span>
                       )}
                     </td>
                     <td className="px-8 py-6 text-sm text-muted-foreground">
                       {app.created_at
-                        ? new Date(app.created_at).toLocaleDateString('fr-FR')
+                        ? new Date(app.created_at).toLocaleDateString('fr-FR', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })
                         : '--'}
                     </td>
                     <td className="px-8 py-6 text-right">
@@ -235,15 +302,24 @@ const { data: applications = [], isLoading } = useQuery({
                           variant="outline"
                           size="sm"
                           onClick={() => setSelectedApplication(app)}
+                          className="hover:bg-primary hover:text-primary-foreground transition-colors"
                         >
                           📊 Détails
                         </Button>
                       )}
                       {['UPLOADING', 'EXTRACTING', 'SCORING'].includes(app.status) && (
-                        <span className="text-sm text-muted-foreground">Traitement...</span>
+                        <span className="text-sm text-muted-foreground animate-pulse">
+                          Traitement...
+                        </span>
                       )}
                       {app.status === 'ERROR' && (
-                        <span className="text-sm text-destructive">Erreur</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:bg-destructive/10"
+                        >
+                          Voir l'erreur
+                        </Button>
                       )}
                     </td>
                   </tr>

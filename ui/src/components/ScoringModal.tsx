@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { applicationsApi, Application } from '@/lib/api';
+import { applicationsApi, Application } from '@/libs/api';
 
 interface ScoringModalProps {
   application: Application;

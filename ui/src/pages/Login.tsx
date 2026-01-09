@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '@/lib/auth';
+import { useAuthStore } from '@/libs/auth';
 import { Button } from '@/components/ui/button';
 
 export function Login() {
@@ -19,6 +19,7 @@ export function Login() {
     navigate(from, { replace: true });
     return null;
   }
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

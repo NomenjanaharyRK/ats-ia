@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { offersApi, JobOffer, getErrorStatus } from '@/lib/api';
+import { offersApi, JobOffer, getErrorStatus } from '@/libs/api';
+
 import { useNavigate } from 'react-router-dom';
 
 
@@ -45,7 +46,8 @@ export function OffersPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-
+  
+  
   // Query pour récupérer les offres
   const { data: offers = [], isLoading, error, refetch } = useQuery({
     queryKey: ['offers'],
@@ -57,7 +59,9 @@ export function OffersPage() {
       return failureCount < 1 && status !== 401;
     },
   });
-
+  
+  console.log('[DEBUG OFFERS]', { offers, error, status: getErrorStatus(error) });
+  
   // Mutation pour créer une offre
   const createMutation = useMutation({
     mutationFn: (offerData: Omit<JobOffer, 'id'>) =>

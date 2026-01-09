@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { applicationsApi } from '@/lib/api';
+import { applicationsApi } from '@/libs/api';
 
 interface UploadZoneProps {
   offerId: number;

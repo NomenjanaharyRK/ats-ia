@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { UploadZone } from '@/components/UploadZone';
 import { ScoringModal } from '@/components/ScoringModal';
-import { offersApi, applicationsApi, Application } from '@/lib/api';
+import { offersApi, applicationsApi, Application } from '@/libs/api';
 
 export function OfferDetail() {
   const { id } = useParams<{ id: string }>();
