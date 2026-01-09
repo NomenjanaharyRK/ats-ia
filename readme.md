@@ -177,6 +177,34 @@ docker compose down -v
 docker exec -it ats-ia-backend-1 python seed_database.py
 ```
 
+### Démarrer l'application complète
+
+```bash
+# 1. Démarrer tous les services avec docker-compose
+docker compose up -d
+
+# 2. Vérifier que tous les services sont en cours d'exécution
+docker compose ps
+
+# 3. Appliquer les migrations de base de données
+docker compose exec -it ats-ia-backend-1 alembic upgrade head
+
+# 4. Seeder la base de données (données de test)
+docker compose exec -it ats-ia-backend-1 python seed_database.py
+
+# 5. Accéder à l'application
+# Frontend:    http://localhost:5173
+# Backend API: http://localhost:8000
+# Swagger UI:  http://localhost:8000/docs
+# Base de données: localhost:5432 (PostgreSQL)
+
+# 6. Arrêter l'application
+docker compose down
+
+# 7. Arrêter et supprimer les volumes (ATTENTION: supprime les données)
+docker compose down -v
+```
+
 ### Commandes Utiles
 
 ```bash
