@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
+from pydantic import field_validator
 
 
 class OfferCreate(BaseModel):
@@ -43,6 +44,21 @@ class OfferRead(BaseModel):
     min_experience_years: int = 0
     required_education: List[str] = Field(default_factory=list)
     required_languages: List[str] = Field(default_factory=list)
+
+        @field_validator('required_skills', 'nice_to_have_skills', 'required_education', 'required_languages', mode='before')
+    @classmethod
+    def convert_json_to_list(cls, v):
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            import json
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                return []
+        if v is None:
+            return []
+        return []
     
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
