@@ -48,22 +48,9 @@ class OfferRead(BaseModel):
         @field_validator('required_skills', 'nice_to_have_skills', 'required_education', 'required_languages', mode='before')
     @classmethod
     def convert_json_to_list(cls, v):
+        """Convert JSON values to lists."""
         if isinstance(v, list):
             return v
-        if isinstance(v, str):
-            import json
-            try:
-                return json.loads(v)
-            except (json.JSONDecodeError, TypeError):
-                return []
         if v is None:
             return []
         return []
-    
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-    )
